@@ -26,9 +26,8 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val WHEEL_MAX = 600
         private const val ACTIVE_TIMEOUT_MS = 150L
-        private const val UI_FRAME_MS = 16L        // ~60 кадров/с для стрелки
         private const val LOG_FLUSH_MS = 300L      // лог обновляем 3 раза в секунду
-        private const val LOG_MAX_LINES = 200      // держим только последние строки
+        private const val LOG_MAX_LINES = 200
     }
 
     private lateinit var b: ActivityMainBinding
@@ -43,35 +42,11 @@ class MainActivity : AppCompatActivity() {
 
     private val ui = Handler(Looper.getMainLooper())
 
-    // Состояние, которое копится между кадрами отрисовки
     private var wheelPosition = 0
-    private var pendingSteps = 0          // накопленные шаги со знаком
-    private var lastForward = true
-    private var wheelDirty = false
 
     private val hideActiveRunnable = Runnable { b.wheel.isActive = false }
 
-    /** Перерисовывает колесо не чаще одного раза в кадр. */
-    private val frameRunnable = object : Runnable {
-        override fun run() {
-            if (wheelDirty) {
-                wheelDirty = false
-                val steps = pendingSteps
-                pendingSteps = 0
-                if (steps != 0) {
-                    b.wheel.rotateBy(abs(steps), steps > 0)
-                    b.wheel.position = wheelPosition
-                    b.wheel.isForward = lastForward
-                    b.wheel.isActive = true
-                    b.wheel.removeCallbacks(hideActiveRunnable)
-                    b.wheel.postDelayed(hideActiveRunnable, ACTIVE_TIMEOUT_MS)
-                }
-            }
-            ui.postDelayed(this, UI_FRAME_MS)
-        }
-    }
-
-    /** Обновляет текстовый лог редко — он самый дорогой элемент. */
+    /** Лог — самый дорогой элемент, поэтому обновляем его редко и пачками. */
     private val logRunnable = object : Runnable {
         override fun run() {
             if (logDirty) {
@@ -132,7 +107,6 @@ class MainActivity : AppCompatActivity() {
             appendLog("Поиск остановлен")
         }
 
-        ui.post(frameRunnable)
         ui.post(logRunnable)
     }
 
@@ -169,7 +143,6 @@ class MainActivity : AppCompatActivity() {
                     b.wheel.visibility = View.VISIBLE
                     b.rvDevices.visibility = View.GONE
                     wheelPosition = 0
-                    pendingSteps = 0
                     b.wheel.position = 0
                     b.wheel.resetAngle()
                 } else {
@@ -184,9 +157,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Вызывается на каждый пакет от устройства (до 100 раз в секунду).
-     * Здесь НИЧЕГО не рисуем — только копим состояние, отрисовка идёт
-     * отдельно по таймеру, иначе UI не успевает за потоком данных.
+     * Каждый пришедший пакет сразу двигает целевой угол — шаги не
+     * схлопываются между кадрами. Плавностью занимается сам виджет:
+     * он доезжает до цели по 25% пути за кадр.
+     *
+     * Число из ENC берётся только как величина (по модулю), направление —
+     * исключительно из DIR.
      */
     private fun onEncoderSteps(steps: Int, forwardFromDir: Boolean?) {
         val magnitude = abs(steps)
@@ -196,9 +172,14 @@ class MainActivity : AppCompatActivity() {
         val delta = if (forward) magnitude else -magnitude
 
         wheelPosition = ((wheelPosition + delta) % WHEEL_MAX + WHEEL_MAX) % WHEEL_MAX
-        pendingSteps += delta
-        lastForward = forward
-        wheelDirty = true
+
+        b.wheel.position = wheelPosition
+        b.wheel.isForward = forward
+        b.wheel.rotateBy(magnitude, forward)
+
+        b.wheel.isActive = true
+        b.wheel.removeCallbacks(hideActiveRunnable)
+        b.wheel.postDelayed(hideActiveRunnable, ACTIVE_TIMEOUT_MS)
 
         appendLog("ENC |$magnitude| ${if (forward) "+" else "-"} pos=$wheelPosition")
     }
@@ -217,7 +198,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        ui.removeCallbacks(frameRunnable)
         ui.removeCallbacks(logRunnable)
         ble?.stop()
         super.onDestroy()
