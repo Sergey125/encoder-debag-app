@@ -24,45 +24,18 @@
         android:layout_marginTop="12dp"
         android:visibility="gone"
         app:layout_constraintDimensionRatio="1:1"
-        app:layout_constraintWidth_percent="0.55"
+        app:layout_constraintWidth_percent="0.6"
         app:layout_constraintTop_toBottomOf="@id/tvStatus"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <LinearLayout
-        android:id="@+id/rowButtons"
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnConnect"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:orientation="horizontal"
-        app:layout_constraintTop_toBottomOf="@id/wheel">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnScan"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginEnd="8dp"
-            android:text="Искать" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnStopScan"
-            style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:visibility="gone"
-            android:text="Стоп" />
-    </LinearLayout>
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvDevices"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="12dp"
-        android:background="#1A1A1A"
-        app:layout_constraintTop_toBottomOf="@id/rowButtons"
-        app:layout_constraintHeight_percent="0.18" />
+        android:text="Подключить устройство"
+        app:layout_constraintTop_toBottomOf="@id/wheel" />
 
     <ScrollView
         android:id="@+id/scrollLog"
@@ -70,7 +43,7 @@
         android:layout_height="0dp"
         android:layout_marginTop="12dp"
         android:background="#1E1E1E"
-        app:layout_constraintTop_toBottomOf="@id/rvDevices"
+        app:layout_constraintTop_toBottomOf="@id/btnConnect"
         app:layout_constraintBottom_toBottomOf="parent">
 
         <TextView

@@ -20,6 +20,8 @@ class EncoderWheelView @JvmOverloads constructor(
         private const val MAJOR_EVERY = 5       // каждое 5-е деление крупное (итого 12)
         private const val FRAME_MS = 16L        // ~60 кадров/с
         private const val EASING = 0.25         // доля оставшегося пути за кадр
+        private const val SNAP_THRESHOLD = 0.5  // ближе этого — доводим сразу
+        private const val JUMP_THRESHOLD = 180.0 // отстали больше — переставляем без анимации
     }
 
     var maxValue: Int = 600
@@ -48,27 +50,43 @@ class EncoderWheelView @JvmOverloads constructor(
         set(v) { field = v; invalidate() }
 
     /**
-     * Сдвигает целевой угол. Стрелка не прыгает скачком, а начинает
-     * плавно доезжать — при частых мелких шагах движение выглядит слитным.
+     * Сдвигает целевой угол. Оба угла удерживаются в пределах одного
+     * оборота, иначе за длинную сессию значения уходят в тысячи градусов
+     * и в Double накапливается ошибка — стрелка начинает вести себя
+     * непредсказуемо.
      */
     fun rotateBy(steps: Int, forward: Boolean) {
         val degreesPerStep = 360.0 / maxValue
         targetAngleDeg += if (forward) steps * degreesPerStep else -steps * degreesPerStep
+
+        // Если стрелка отстала больше чем на пол-оборота, догонять
+        // по длинному пути бессмысленно — переставляем сразу.
+        if (abs(targetAngleDeg - spokeAngleDeg) > JUMP_THRESHOLD) {
+            spokeAngleDeg = targetAngleDeg
+        }
+
+        // Нормализация: не даём значениям расти бесконечно
+        if (abs(targetAngleDeg) > 360.0) {
+            val whole = (targetAngleDeg / 360.0).toInt() * 360.0
+            targetAngleDeg -= whole
+            spokeAngleDeg -= whole
+        }
+
         startAnimation()
     }
 
     fun resetAngle() {
+        removeCallbacks(animator)
+        animating = false
         spokeAngleDeg = -90.0
         targetAngleDeg = -90.0
-        animating = false
-        removeCallbacks(animator)
         invalidate()
     }
 
     private val animator = object : Runnable {
         override fun run() {
             val diff = targetAngleDeg - spokeAngleDeg
-            if (abs(diff) < 0.05) {
+            if (abs(diff) < SNAP_THRESHOLD) {
                 spokeAngleDeg = targetAngleDeg
                 animating = false
                 invalidate()
