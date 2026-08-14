@@ -1,4 +1,4 @@
-name: Build and Release APK
+name: Build and Release
 
 on:
   push:
@@ -35,10 +35,42 @@ jobs:
           mv app/build/outputs/apk/debug/app-debug.apk \
              app/build/outputs/apk/debug/encoder-$VERSION.apk
 
+      - name: Install Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+
+      - name: Install ESP32 core
+        run: |
+          arduino-cli config init
+          arduino-cli config add board_manager.additional_urls \
+            https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32
+
+      - name: Install Arduino libraries
+        run: |
+          arduino-cli lib update-index
+          arduino-cli lib install "NimBLE-Arduino"
+          arduino-cli lib install "Adafruit NeoPixel"
+
+      - name: Compile firmware
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          arduino-cli compile \
+            --fqbn esp32:esp32:esp32h2 \
+            --output-dir ./firmware-build \
+            ./esp32-firmware/ble_encoder
+          mv ./firmware-build/ble_encoder.ino.bin \
+             ./firmware-build/encoder-firmware-$VERSION.bin
+
+      - name: List build artifacts
+        run: ls -la ./firmware-build
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: android/encoder/app/build/outputs/apk/debug/encoder-*.apk
+          files: |
+            android/encoder/app/build/outputs/apk/debug/encoder-*.apk
+            firmware-build/encoder-firmware-*.bin
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
