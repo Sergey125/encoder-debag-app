@@ -10,8 +10,8 @@ android {
         applicationId = "com.example.encoder"
         minSdk = 24
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 4
+        versionName = "1.0.3_beta"
 
         buildConfigField("String", "GITHUB_OWNER", "\"Sergey125\"")
         buildConfigField("String", "GITHUB_REPO", "\"encoder-debag-app\"")
