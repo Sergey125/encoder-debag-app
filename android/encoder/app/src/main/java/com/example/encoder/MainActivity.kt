@@ -25,6 +25,7 @@ import java.text.SimpleDateFormat
 import java.util.ArrayDeque
 import java.util.Date
 import java.util.Locale
+import androidx.appcompat.app.AlertDialog
 
 class MainActivity : AppCompatActivity() {
 
@@ -54,7 +55,8 @@ class MainActivity : AppCompatActivity() {
     private var dialogStatus: android.widget.TextView? = null
     private var dialogScanBtn: MaterialButton? = null
     private var dialogStopBtn: MaterialButton? = null
-
+    private lateinit var updateChecker: UpdateChecker
+    private var progressDialog: AlertDialog? = null
     private val logRunnable = object : Runnable {
         override fun run() {
             if (logDirty) {
@@ -118,6 +120,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         ui.post(logRunnable)
+        updateChecker = UpdateChecker(this)
+        checkUpdates()
+
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -175,6 +180,52 @@ class MainActivity : AppCompatActivity() {
         ble?.startScan()
     }
 
+    private fun checkUpdates() {
+        updateChecker.checkForUpdate(
+            currentVersion = BuildConfig.VERSION_NAME,
+            onResult = { release ->
+                if (release == null) {
+                    appendLog("Обновлений нет (${BuildConfig.VERSION_NAME})")
+                    return@checkForUpdate
+                }
+                appendLog("Доступна версия ${release.version}")
+                AlertDialog.Builder(this)
+                    .setTitle("Обновление ${release.version}")
+                    .setMessage(
+                        if (release.notes.isNotBlank()) release.notes
+                        else "Установлена ${BuildConfig.VERSION_NAME}. Скачать новую версию?"
+                    )
+                    .setPositiveButton("Скачать") { _, _ -> startDownload(release) }
+                    .setNegativeButton("Позже", null)
+                    .show()
+            },
+            onError = { msg -> appendLog("Обновление: $msg") }
+        )
+    }
+
+    private fun startDownload(release: ReleaseInfo) {
+        progressDialog = AlertDialog.Builder(this)
+            .setTitle("Загрузка ${release.version}")
+            .setMessage("0%")
+            .setCancelable(false)
+            .show()
+
+        updateChecker.downloadAndInstall(
+            release = release,
+            onProgress = { percent ->
+                progressDialog?.setMessage("$percent%")
+                if (percent >= 100) {
+                    progressDialog?.dismiss()
+                    progressDialog = null
+                }
+            },
+            onError = { msg ->
+                progressDialog?.dismiss()
+                progressDialog = null
+                appendLog("Обновление: $msg")
+            }
+        )
+    }
     private fun ensureClient() {
         if (ble != null) return
         ble = BleEncoderClient(

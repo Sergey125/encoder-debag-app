@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
 }
 
 android {
@@ -9,10 +8,13 @@ android {
 
     defaultConfig {
         applicationId = "com.example.encoder"
-        minSdk = 26
+        minSdk = 24
         targetSdk = 35
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
+
+        buildConfigField("String", "GITHUB_OWNER", "\"Sergey125\"")
+        buildConfigField("String", "GITHUB_REPO", "\"encoder-debag-app\"")
     }
 
     buildTypes {
@@ -26,11 +28,14 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
+    kotlin {
+        jvmToolchain(17)
     }
 
-    buildFeatures { viewBinding = true }
+    buildFeatures {
+        viewBinding = true
+        buildConfig = true
+    }
 }
 
 dependencies {
