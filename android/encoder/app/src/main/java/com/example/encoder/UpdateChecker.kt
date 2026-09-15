@@ -140,7 +140,13 @@ class UpdateChecker(
                 }
                 conn.disconnect()
 
-                main.post { installApk(outFile) }
+                main.post {
+                    try {
+                        installApk(outFile)
+                    } catch (e: Exception) {
+                        onError("Не удалось запустить установку: ${e.message}")
+                    }
+                }
             } catch (e: Exception) {
                 main.post { onError("Ошибка загрузки: ${e.message}") }
             }
@@ -163,8 +169,8 @@ class UpdateChecker(
 
     /** Сравнивает версии вида "1.2.10" покомпонентно, а не как строки. */
     private fun isNewer(remote: String, local: String): Boolean {
-        val r = remote.split(".").mapNotNull { it.toIntOrNull() }
-        val l = local.split(".").mapNotNull { it.toIntOrNull() }
+        val r = parseVersion(remote)
+        val l = parseVersion(local)
         for (i in 0 until maxOf(r.size, l.size)) {
             val a = r.getOrElse(i) { 0 }
             val b = l.getOrElse(i) { 0 }
@@ -172,4 +178,14 @@ class UpdateChecker(
         }
         return false
     }
+
+    /**
+     * Разбирает версию по точкам, обрезая нечисловой суффикс у каждого
+     * компонента (например, "3_beta" → 3), а не отбрасывая его целиком —
+     * иначе "1.0.3_beta" сравнивалось бы как "1.0", то есть хуже, чем 1.0.2.
+     */
+    private fun parseVersion(version: String): List<Int> =
+        version.split(".").map { component ->
+            component.takeWhile { it.isDigit() }.toIntOrNull() ?: 0
+        }
 }

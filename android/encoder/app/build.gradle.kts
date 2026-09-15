@@ -7,19 +7,32 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "ru.sergey.encoder"
+        applicationId = "com.example.encoder"
         minSdk = 24
         targetSdk = 35
         versionCode = 4
-        versionName = "1.0.3_beta"
+        versionName = "1.0.3"
 
         buildConfigField("String", "GITHUB_OWNER", "\"Sergey125\"")
         buildConfigField("String", "GITHUB_REPO", "\"encoder-debag-app\"")
     }
 
+    signingConfigs {
+        // Один и тот же ключ на всех сборках (локально и в CI), иначе
+        // Android отказывается ставить "обновление" поверх старой версии,
+        // подписанной другим (случайным) debug-ключом.
+        getByName("debug") {
+            storeFile = file("../keystore/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
